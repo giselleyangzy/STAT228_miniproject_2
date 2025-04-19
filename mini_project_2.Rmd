@@ -1,0 +1,141 @@
+---
+title: "Data Wrangling Tutorial: Where the Women Are? and What They Earn?"
+author: "Giselle Yang\n\nSTAT 228 - Introduction to Data Science\n\nProf. Rockweiler"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+subtitle: Mini Project 2
+header-includes:
+- \usepackage{fvextra}
+- \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+# Introduction
+
+College majors play a significant role in shaping the careers and economic opportunities of recent graduates. As the cost of education rises and job markets shift, understanding the employment and salary outcomes across different fields of study becomes more important than ever — not just for students and families, but also for policymakers and career advisors.
+
+This tutorial walks through how to clean and explore data on recent college graduates in the U.S., focusing on variables like median salary, gender representation, and unemployment rate. The goal is to demonstrate practical data wrangling techniques in R using the `dplyr` and `tidyr` packages, while also uncovering insights about which majors offer the most promising outcomes after graduation.
+
+The dataset used is [recent-grads.csv](https://github.com/fivethirtyeight/data/blob/master/college-majors/recent-grads.csv), originally published by [FiveThirtyEight](https://github.com/fivethirtyeight/data/tree/master) and based on data from the American Community Survey (2010–2012). It includes information about college majors, gender breakdown, employment status, and income for recent U.S. college graduates aged 22–27.
+
+```{r load_libraries, include=FALSE}
+library(fivethirtyeight)
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(ggthemes)
+library(scales)
+```
+
+Let’s start by narrowing down the dataset to just the variables (`Major`, `Major_category`, `Total`, `Men`, `Women`, `Median`, and `Unemployment_rate`) we’ll be working with in this tutorial.
+
+```{r read_data, message=FALSE, warning=FALSE}
+
+# reading data in
+recent_grads <- read_csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/college-majors/recent-grads.csv")
+
+recent_grads <- recent_grads |> 
+  select(Major, Major_category, Total, Men, Women, Median, Unemployment_rate)
+recent_grads
+```
+
+# Data wrangling process
+
+Now that we’ve selected the key columns from our dataset, we’ll begin transforming the data to uncover insights about gender representation, salary, and unemployment rates across different majors. Throughout this process, we’ll use various functions from `dplyr` and `tidyr` to filter, calculate, and arrange the data.
+
+## Exercises
+
+### Exercise 1: _How many women/men are in my major?_
+
+In this exercise, we’ll calculate the proportion of women in each major. By creating the `Women_prop` variable, we can better understand the gender distribution across different fields of study. This metric will range from 0 to 1, where higher values shows a greater proportion of women in the majors. 
+
+We will use the `mutate()` function to create the new variable and then use `arrange()` to identify the most and least female-dominated majors.
+
+```{r exercise1, message=FALSE, warning=FALSE}
+# create the new variable women_prop
+recent_grads_prop <- recent_grads |> 
+  mutate(Women_prop = Women / Total)
+
+# arrange by Women_prop in decending order  
+recent_grads_prop |> 
+  select(Major, Major_category, Women_prop) |> 
+  arrange(desc(Women_prop)) # majors with more women come first 
+  
+
+# arrange by Women_prop in decending order  
+recent_grads_prop |> 
+  select(Major, Major_category, Women_prop) |>
+  arrange(Women_prop) # majors with less women (or more men) come first 
+  
+```
+
+Results of this exercise provide a huge picture for students in this major to see how gender is represented among their peers. They can also see whether their field is more male- or female-dominated.
+
+### Exercise 2: _Will I make money with this major compared to other majors?_
+
+In the next exercise, we’ll use `mutate()` again to create a new variable `Mid_salary`, which is the median of the median salary of all majors. Then using `filter()`, we will identify majors where recent graduates are earning above the median salary.  
+
+After calculating the average salary, we'll filter the majors to only include those with a `Median` salary greater than the average, and then display the top 10.
+
+```{r exercise2, message=FALSE, warning=FALSE}
+recent_grads_salary <- recent_grads |> 
+  mutate(mid_salary = median(Median)) # create new variable 
+
+recent_grads_salary |> 
+  filter(Median > mid_salary) |> # filter majors with above-median salary
+  select(Major, Major_category, Median) |> 
+  arrange(desc(Median))
+```
+
+This is helpful for us to focus on fields with higher earnings. Students can take the result as a reference when deciding their majors. 
+
+## Data Visualizations
+
+In this section, we’ll create a visualization that helps us better understand trends and relationships in the dataset. We will use `ggplot2` to plot gender representation. It will help uncover key insights in the data, such as whether higher-paying fields tend to have more male or female representation. 
+
+**Gender Representation vs. Median Salary**
+
+Let’s create a scatter plot that compares the proportion of women in each major with the median salary for recent graduates. This visualization will help us see if there’s any relationship between gender balance and salary outcomes.
+
+```{r visualization, message=FALSE, warning=FALSE}
+recent_grads_prop |> 
+  ggplot(mapping = aes(x = Women_prop, y = Median)) +
+  geom_point(aes(color = Major_category)) + 
+  scale_y_continuous(labels = label_comma()) + # to show salary in numbers
+  geom_smooth(method = "lm", se = FALSE) + #fit a linear regression line to see the relationship
+  labs(
+    title = "Scatterplot of Proportion of Women vs Median Salary",
+    subtitle = "by Major Categories", 
+    x = "proportion of women",
+    y = "median salary (USD)",
+    color = "major category"
+    ) 
+```
+
+This scatterplot shows the relationship between the proportion of women in each major and the its median salary. Each point represents a major, where the x-axis shows the proportion of women and the y-axis shows the median salary in USD. The categories each major belongs to is distinguished by different colors. 
+
+From the plot, we can see if there is a negative moderate linear relationship between the proportion of women in each major and the its median salary. Higher-paying fields tend to have lower proportion of women. Moreover, according to the plot, we can tell that engineering majors has the highest median salary. 
+
+# Conclusion 
+
+In this tutorial, we focused on analyzing data from recent U.S. college graduates, specifically examining proportion of women and salary across various majors. We wrangled the dataset, and applied funcitons from `dplyr` and `tidyr`. To create new columns in the dataset, we used `mutate()`; to sort the dataset in accending/decending order, we used `arrage()`; and finally, to show only the relevant columns, we used `select()`. In the second exercise, we practiced how to use `filter()` to filter out only rows that fit specific conditions. 
+
+**Key Findings from the Exercises**
+
+1. How many women/men are in my major?: 
+
+    By calculating the proportion of women in each major, we identified fields with the most and least women proportion. We found that Education and Health fields are mostly female, whereas Industrial Arts & Consumer Services and Engineering majors are male-dominated. 
+
+2. Will I make money with this major compared to other majors?: 
+    
+    Using the filter function, we identified majors that offer salaries above the median. Among 173 majors in the dataset, 86 of them is considered "high-earning majors". Graduates with Engineering majors earn the most (with a median of $110,000) in general, and this result matches the results in the scatterplot.  
+
+**Visualization Insights**
+The Proportion of Women vs Median Salary scatterplot shows the relationship between women proportion and salary across different majors. While some higher-paying fields, like engineering, are male-dominated, majors in educaiton has huger women proportions, but with less salary. 
+
+**Implications**
+These findings can serve as references for students considering their future careers. They can take a look at how majors are male/female based, and how they will potentially get paid after graduation. Additionally, the negative relationship bewteen women proportion and salary worths studying. Ideally the proportion of women shouldn't affect the salary of a job, and further study should look into if there is any confounding variable, or if there is any solution that fix this problem. 
